@@ -1,7 +1,8 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import gsap from "gsap"
 import {
   Calendar,
   Mail,
@@ -98,6 +99,11 @@ const actionCategories = [
 ]
 
 export function AgentSettingsScreen() {
+  // Refs for animations
+  const categoryRefs = useRef<(HTMLDivElement | null)[]>([])
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  
+  // State for connected status
   const [connectedStatus, setConnectedStatus] = useState(
     actionCategories
       .flatMap((c) => c.actions)
@@ -109,9 +115,103 @@ export function AgentSettingsScreen() {
         {} as Record<string, boolean>,
       ),
   )
+  
+  // Initialize refs
+  useEffect(() => {
+    categoryRefs.current = categoryRefs.current.slice(0, actionCategories.length)
+  }, [])
 
+  // Animation for initial load
+  useEffect(() => {
+    // Animate categories
+    gsap.fromTo(
+      categoryRefs.current,
+      { opacity: 0, y: 30 },
+      { 
+        opacity: 1, 
+        y: 0, 
+        duration: 0.6, 
+        stagger: 0.15,
+        ease: "power2.out"
+      }
+    )
+    
+    // Get all cards
+    const allCards = Object.values(cardRefs.current).filter(Boolean)
+    
+    // Animate cards
+    gsap.fromTo(
+      allCards,
+      { opacity: 0, scale: 0.95 },
+      { 
+        opacity: 1, 
+        scale: 1, 
+        duration: 0.5, 
+        stagger: 0.05,
+        ease: "back.out(1.2)",
+        delay: 0.3
+      }
+    )
+  }, [])
+  
   const toggleConnection = (id: string) => {
+    // Update state
     setConnectedStatus((prev) => ({ ...prev, [id]: !prev[id] }))
+    
+    // Get the card element
+    const card = cardRefs.current[id]
+    if (!card) return
+    
+    // Create animation for the toggle
+    const isNowConnected = !connectedStatus[id]
+    
+    if (isNowConnected) {
+      // Connected animation
+      gsap.timeline()
+        .to(card, { 
+          scale: 1.05, 
+          duration: 0.2,
+          ease: "power1.out"
+        })
+        .to(card, { 
+          scale: 1, 
+          duration: 0.3,
+          ease: "elastic.out(1, 0.3)"
+        })
+        .to(card.querySelector('.icon-container'), {
+          backgroundColor: "#000000",
+          duration: 0.3,
+          ease: "power2.inOut"
+        }, "-=0.3")
+        .to(card.querySelector('.icon-svg'), {
+          color: "#ffffff",
+          duration: 0.3,
+          ease: "power2.inOut"
+        }, "-=0.3")
+    } else {
+      // Disconnected animation
+      gsap.timeline()
+        .to(card, { 
+          scale: 0.98, 
+          duration: 0.2,
+          ease: "power1.out"
+        })
+        .to(card, { 
+          scale: 1, 
+          duration: 0.3,
+          ease: "power2.out"
+        })
+        .to(card.querySelector('.icon-container'), {
+          backgroundColor: "#f3f4f6",
+          duration: 0.3,
+          ease: "power2.inOut"
+        }, "-=0.3")
+        .to(card.querySelector('.icon-svg'), {
+          color: "#6b7280",
+          duration: 0.3,
+          ease: "power2.inOut"
+        }, "-=0.3")
+    }
   }
 
   return (
@@ -121,22 +221,30 @@ export function AgentSettingsScreen() {
         <p className="text-gray-600">Connect new skills to your agent to expand its automation powers.</p>
       </div>
 
-      {actionCategories.map((category) => (
-        <div key={category.category}>
+      {actionCategories.map((category, index) => (
+        <div 
+          key={category.category}
+          ref={el => categoryRefs.current[index] = el}
+          className="opacity-0"
+        >
           <h3 className="text-base font-semibold text-gray-800 mb-1">{category.category}</h3>
           <p className="text-sm text-gray-500 mb-4">{category.description}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {category.actions.map((action) => {
               const isConnected = connectedStatus[action.id]
               return (
-                <Card key={action.id} className="bg-white shadow-sm border-gray-200 flex flex-col">
+                <Card 
+                  key={action.id} 
+                  className="bg-white shadow-sm border-gray-200 flex flex-col opacity-0"
+                  ref={el => cardRefs.current[action.id] = el}
+                >
                   <CardHeader className="flex-row items-start gap-4 space-y-0">
                     <div
-                      className={`w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0 ${
+                      className={`w-10 h-10 flex items-center justify-center rounded-lg flex-shrink-0 icon-container ${
                         isConnected ? "bg-black" : "bg-gray-100"
                       }`}
                     >
-                      <action.Icon className={`w-5 h-5 ${isConnected ? "text-white" : "text-gray-500"}`} />
+                      <action.Icon className={`w-5 h-5 icon-svg ${isConnected ? "text-white" : "text-gray-500"}`} />
                     </div>
                     <div>
                       <CardTitle className="text-base">{action.title}</CardTitle>

@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react"
 import { SummaryMetrics } from "../dashboard/summary-metrics"
 import { CallLogItem } from "../dashboard/call-log-item"
+import { TodayEventsList } from "../dashboard/today-events-list"
+import { mockTodayEvents } from "@/lib/mock-data"
 import type { HistoryItem } from "@/lib/types"
 
 type FilterType = "all" | "today" | "pending" | "ai_handled"
@@ -33,6 +35,7 @@ const groupHistoryByDate = (items: HistoryItem[]) => {
 
 export function HomeScreen({ history }: { history: HistoryItem[] }) {
   const [filter, setFilter] = useState<FilterType>("all")
+  const [showTodayEvents, setShowTodayEvents] = useState(true)
 
   const filteredHistory = useMemo(() => {
     const today = new Date().toDateString()
@@ -50,30 +53,66 @@ export function HomeScreen({ history }: { history: HistoryItem[] }) {
   const groupedHistory = groupHistoryByDate(filteredHistory)
   const dateGroups = ["Today", "Yesterday", "Older"]
 
+  // Handle filter change with additional logic for showing/hiding sections
+  const handleFilterChange = (newFilter: FilterType) => {
+    if (filter === newFilter) {
+      setFilter("all")
+      setShowTodayEvents(true) // Show Today's Events when returning to "all"
+    } else {
+      setFilter(newFilter)
+      // Always show the selected filter content
+      setShowTodayEvents(true)
+    }
+  }
+
   return (
     <div className="space-y-8">
       <SummaryMetrics
         history={history}
         activeFilter={filter}
-        onFilterChange={(newFilter) => setFilter(filter === newFilter ? "all" : newFilter)}
+        onFilterChange={handleFilterChange}
       />
-      <main>
-        <div className="space-y-6">
-          {dateGroups.map(
-            (group) =>
-              groupedHistory[group] && (
-                <div key={group}>
-                  <h3 className="text-sm font-semibold text-gray-500 mb-3 px-1">{group}</h3>
-                  <div className="space-y-3">
-                    {groupedHistory[group].map((item) => (
-                      <CallLogItem key={item.id} item={item} />
-                    ))}
-                  </div>
-                </div>
-              ),
-          )}
+      
+      {/* Today's Events Section */}
+      {(filter === "all" || filter === "today") && (
+        <div className={filter === "today" ? "max-h-[60vh] overflow-y-auto pb-4 pr-1" : ""}>
+          <TodayEventsList events={mockTodayEvents} />
         </div>
-      </main>
+      )}
+      
+      {/* Recent Activity Section - Only show when filter is "all" */}
+      {filter === "all" && (
+        <main className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+          <div className="space-y-6">
+            {dateGroups.map(
+              (group) =>
+                groupedHistory[group] && (
+                  <div key={group}>
+                    <h3 className="text-sm font-semibold text-gray-500 mb-3 px-1">{group}</h3>
+                    <div className="space-y-3">
+                      {groupedHistory[group].map((item) => (
+                        <CallLogItem key={item.id} item={item} />
+                      ))}
+                    </div>
+                  </div>
+                ),
+            )}
+          </div>
+        </main>
+      )}
+      
+      {/* Pending Actions Section - Only show when filtering by pending */}
+      {filter === "pending" && (
+        <div className="max-h-[60vh] overflow-y-auto pb-4 pr-1">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pending Actions</h2>
+          <div className="space-y-3">
+            {filteredHistory.map((item) => (
+              <CallLogItem key={item.id} item={item} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
